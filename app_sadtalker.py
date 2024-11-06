@@ -240,7 +240,7 @@ async def get_task(task_id: str):
 
 @app.get("/download")
 async def download(task_id: str):
-    result_path = "./temp/61e2a0dadc0f4f968366ecc9639cd3d05.webp"
+    result_path = task_results.get(task_id)
     if result_path is None:
         raise HTTPException(status_code=404, detail="Task not found")
     if not os.path.exists(result_path):
