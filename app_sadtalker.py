@@ -1,14 +1,17 @@
 import os
 import shutil
 import sys
+import uuid
 
 import gradio as gr
 import uvicorn
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 import logging
+
+from fastapi.responses import FileResponse
 
 from src.gradio_demo import SadTalker
 
@@ -17,6 +20,8 @@ app = FastAPI()
 logging.basicConfig(filename='app.log',
                     level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+task_results: Dict[str, Optional[str]] = {}
 
 
 class PrintLogger:
@@ -150,6 +155,12 @@ def create_response(code: int, message: str, body: Any = None) -> JSONResponse:
     return JSONResponse(content=ResponseModel(code=code, message=message, body=body).model_dump())
 
 
+def process_task(task_id, source_image_path, driven_audio_path, **kwargs):
+    sad_talker = SadTalker()
+    result_path = sad_talker.test(source_image_path, driven_audio_path, **kwargs)
+    task_results[task_id] = result_path
+
+
 class Params(BaseModel):
     preprocess: str = 'crop'
     still_mode: bool = False
@@ -169,6 +180,7 @@ class Params(BaseModel):
 
 @app.post("/generate")
 async def generate(
+        background_tasks: BackgroundTasks,
         source_image: UploadFile = File(...),
         driven_audio: UploadFile = File(...),
         preprocess: str = Form('crop'),
@@ -195,16 +207,53 @@ async def generate(
     driven_audio_path = f"./temp/{driven_audio.filename}"
     with open(driven_audio_path, "wb") as buffer:
         shutil.copyfileobj(driven_audio.file, buffer)
+    task_id = str(uuid.uuid4())
 
-    sad_talker = SadTalker()
-    return_path = sad_talker.test(source_image_path, driven_audio_path, preprocess, still_mode, use_enhancer,
-                                  batch_size, size,
-                                  pose_style, exp_scale, use_ref_video, ref_video, ref_info, use_idle_mode,
-                                  length_of_audio,
-                                  use_blink, result_dir)
-    print(f"Processing image: {source_image_path} and audio: {driven_audio_path} and result: {return_path}")
-    return create_response(0, "ok", "success")
+    background_tasks.add_task(process_task, task_id, source_image_path, driven_audio_path,
+                              preprocess=preprocess,  # 参数4及以后
+                              still_mode=still_mode,
+                              use_enhancer=use_enhancer,
+                              batch_size=batch_size,
+                              size=size,
+                              pose_style=pose_style,
+                              exp_scale=exp_scale,
+                              use_ref_video=use_ref_video,
+                              ref_video=ref_video,
+                              ref_info=ref_info,
+                              use_idle_mode=use_idle_mode,
+                              length_of_audio=length_of_audio,
+                              use_blink=use_blink,
+                              result_dir=result_dir)
+    return create_response(0, "ok", {"task_id": task_id})
 
+
+@app.get("/task")
+async def get_task(task_id: str):
+    result = task_results.get(task_id)
+    if result is None:
+        return create_response(1, "fail", "task not found")
+    elif isinstance(result, str):
+        return create_response(0, "ok", "task is complete")
+    else:
+        return create_response(2, "fail", "task not exist")
+
+
+@app.get("/download")
+async def download(task_id: str):
+    result_path = "./temp/61e2a0dadc0f4f968366ecc9639cd3d05.webp"
+    if result_path is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if not os.path.exists(result_path):
+        raise HTTPException(status_code=404, detail="Task not found")
+    return FileResponse(result_path, media_type="application/octet-stream", filename=os.path.basename(result_path))
+
+
+def gradio_interface(source_image, driven_audio, *args):
+    task_id = generate(source_image, driven_audio, *args)
+    return f"Task ID: {task_id}"
+
+
+demo = gr.Interface(fn=gradio_interface, inputs=["file", "file"], outputs="text").queue()
 
 if __name__ == "__main__":
     demo = sadtalker_demo()
