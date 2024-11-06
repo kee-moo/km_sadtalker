@@ -252,6 +252,5 @@ class AnimateFromCoeff():
 
         os.remove(path)
         os.remove(new_audio_path)
-
         return return_path
 

@@ -197,10 +197,12 @@ async def generate(
         shutil.copyfileobj(driven_audio.file, buffer)
 
     sad_talker = SadTalker()
-    sad_talker.test(source_image_path, driven_audio_path, preprocess, still_mode, use_enhancer, batch_size, size,
-                    pose_style, exp_scale, use_ref_video, ref_video, ref_info, use_idle_mode, length_of_audio,
-                    use_blink, result_dir)
-    print(f"Processing image: {source_image_path} and audio: {driven_audio_path}")
+    return_path = sad_talker.test(source_image_path, driven_audio_path, preprocess, still_mode, use_enhancer,
+                                  batch_size, size,
+                                  pose_style, exp_scale, use_ref_video, ref_video, ref_info, use_idle_mode,
+                                  length_of_audio,
+                                  use_blink, result_dir)
+    print(f"Processing image: {source_image_path} and audio: {driven_audio_path} and result: {return_path}")
     return create_response(0, "ok", "success")
 
 
