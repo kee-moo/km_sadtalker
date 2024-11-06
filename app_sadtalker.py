@@ -156,9 +156,11 @@ class ResponseModel(BaseModel):
 def create_response(code: int, message: str, body: Any = None) -> JSONResponse:
     return JSONResponse(content=ResponseModel(code=code, message=message, body=body).model_dump())
 
+
 def gradio_interface(source_image, driven_audio, *args):
     task_id = generate_task(source_image, driven_audio, *args)
     return f"Task ID: {task_id}"
+
 
 def generate_task(task_id, source_image_path, driven_audio_path, **kwargs):
     sad_talker = SadTalker()
@@ -167,7 +169,6 @@ def generate_task(task_id, source_image_path, driven_audio_path, **kwargs):
     task_results[task_id] = result_path
     return task_id
 
-demo = gr.Interface(fn=gradio_interface, inputs=["file", "file"], outputs="text").queue()
 
 class Params(BaseModel):
     preprocess: str = 'crop'
@@ -256,6 +257,7 @@ async def download(task_id: str):
     if not os.path.exists(result_path):
         raise HTTPException(status_code=404, detail="Task not found")
     return FileResponse(result_path, media_type="application/octet-stream", filename=os.path.basename(result_path))
+
 
 if __name__ == "__main__":
     demo = sadtalker_demo()
