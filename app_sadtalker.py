@@ -22,6 +22,8 @@ logging.basicConfig(filename='app.log',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 task_results: Dict[str, Optional[str]] = {}
+SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
+OUTPUT_DIR = os.path.join(SCRIPT_PATH, "results/")
 
 
 class PrintLogger:
@@ -154,13 +156,18 @@ class ResponseModel(BaseModel):
 def create_response(code: int, message: str, body: Any = None) -> JSONResponse:
     return JSONResponse(content=ResponseModel(code=code, message=message, body=body).model_dump())
 
+def gradio_interface(source_image, driven_audio, *args):
+    task_id = generate_task(source_image, driven_audio, *args)
+    return f"Task ID: {task_id}"
 
-def process_task(task_id, source_image_path, driven_audio_path, **kwargs):
+def generate_task(task_id, source_image_path, driven_audio_path, **kwargs):
     sad_talker = SadTalker()
     result_path = sad_talker.test(source_image_path, driven_audio_path, **kwargs)
     logging.info("task is in process, result path: {}".format(result_path))
     task_results[task_id] = result_path
+    return task_id
 
+demo = gr.Interface(fn=gradio_interface, inputs=["file", "file"], outputs="text").queue()
 
 class Params(BaseModel):
     preprocess: str = 'crop'
@@ -179,7 +186,7 @@ class Params(BaseModel):
     result_dir: str = './results/'
 
 
-@app.post("/generate")
+@app.post("/km_sadtalker/generate")
 async def generate(
         background_tasks: BackgroundTasks,
         source_image: UploadFile = File(...),
@@ -199,6 +206,8 @@ async def generate(
         use_blink: bool = Form(True),
         result_dir: str = Form('./results/')
 ):
+    shutil.rmtree(OUTPUT_DIR, ignore_errors=True)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     temp_dir = './temp'
     os.makedirs(temp_dir, exist_ok=True)
     source_image_path = f"./temp/{source_image.filename}"
@@ -209,8 +218,7 @@ async def generate(
     with open(driven_audio_path, "wb") as buffer:
         shutil.copyfileobj(driven_audio.file, buffer)
     task_id = str(uuid.uuid4())
-
-    background_tasks.add_task(process_task, task_id, source_image_path, driven_audio_path,
+    background_tasks.add_task(generate_task, task_id, source_image_path, driven_audio_path,
                               preprocess=preprocess,  # 参数4及以后
                               still_mode=still_mode,
                               use_enhancer=use_enhancer,
@@ -228,8 +236,8 @@ async def generate(
     return create_response(0, "ok", {"task_id": task_id})
 
 
-@app.get("/task")
-async def get_task(task_id: str):
+@app.get("/km_sadtalker/task/status")
+async def get_task_status(task_id: str):
     result = task_results.get(task_id)
     if result is None:
         return create_response(1, "fail", "task not found")
@@ -239,7 +247,7 @@ async def get_task(task_id: str):
         return create_response(2, "fail", "task not exist")
 
 
-@app.get("/download")
+@app.get("/km_sadtalker/download")
 async def download(task_id: str):
     result_path = task_results.get(task_id)
     logging.info("download result path: {}".format(result_path))
@@ -248,14 +256,6 @@ async def download(task_id: str):
     if not os.path.exists(result_path):
         raise HTTPException(status_code=404, detail="Task not found")
     return FileResponse(result_path, media_type="application/octet-stream", filename=os.path.basename(result_path))
-
-
-def gradio_interface(source_image, driven_audio, *args):
-    task_id = generate(source_image, driven_audio, *args)
-    return f"Task ID: {task_id}"
-
-
-demo = gr.Interface(fn=gradio_interface, inputs=["file", "file"], outputs="text").queue()
 
 if __name__ == "__main__":
     demo = sadtalker_demo()
