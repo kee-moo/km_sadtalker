@@ -2,6 +2,8 @@ import os
 import shutil
 import sys
 import uuid
+from datetime import datetime
+from logging.handlers import TimedRotatingFileHandler
 
 import gradio as gr
 import uvicorn
@@ -17,9 +19,25 @@ from src.gradio_demo import SadTalker
 
 app = FastAPI()
 
-logging.basicConfig(filename='app.log',
-                    level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+log_dir = 'log'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# 设置日志文件路径，并按日期和小时命名
+current_time = datetime.now().strftime("%Y-%m-%d-%H")
+log_file = os.path.join(log_dir, f'info-{current_time}.log')
+
+# 设置日志文件按小时切分
+log_handler = TimedRotatingFileHandler(
+    log_file, when='H', interval=1, backupCount=24
+)
+
+log_handler.setFormatter(
+    logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+)
+
+# 配置日志
+logging.basicConfig(level=logging.DEBUG, handlers=[log_handler])
 
 task_results: Dict[str, Optional[str]] = {}
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -262,5 +280,5 @@ async def download(task_id: str):
 if __name__ == "__main__":
     demo = sadtalker_demo()
     demo.queue()
-    app = gr.mount_gradio_app(app, demo, path="/gr")
+    app = gr.mount_gradio_app(app, demo, path="/home")
     uvicorn.run(app, port=6006)
