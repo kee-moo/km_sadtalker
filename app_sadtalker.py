@@ -158,6 +158,7 @@ def create_response(code: int, message: str, body: Any = None) -> JSONResponse:
 def process_task(task_id, source_image_path, driven_audio_path, **kwargs):
     sad_talker = SadTalker()
     result_path = sad_talker.test(source_image_path, driven_audio_path, **kwargs)
+    logging.info("task is in process, result path: {}".format(result_path))
     task_results[task_id] = result_path
 
 
@@ -241,6 +242,7 @@ async def get_task(task_id: str):
 @app.get("/download")
 async def download(task_id: str):
     result_path = task_results.get(task_id)
+    logging.info("download result path: {}".format(result_path))
     if result_path is None:
         raise HTTPException(status_code=404, detail="Task not found")
     if not os.path.exists(result_path):
