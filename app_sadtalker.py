@@ -281,4 +281,5 @@ if __name__ == "__main__":
     demo = sadtalker_demo()
     demo.queue()
     app = gr.mount_gradio_app(app, demo, path="/home")
+    print(f"Gradio static files are being served from: {gr.__path__}")
     uvicorn.run(app, port=6006)
