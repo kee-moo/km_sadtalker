@@ -6,6 +6,7 @@ from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 
 import gradio as gr
+import pytz
 import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -257,13 +258,13 @@ async def generate(
 
 @app.get("/km_sadtalker/task/status")
 async def get_task_status(task_id: str):
-    result = task_results.get(task_id)
-    if result is None:
-        return create_response(1, "fail", "task not found")
-    elif isinstance(result, str):
-        return create_response(0, "ok", "task is complete")
-    else:
-        return create_response(2, "fail", "task not exist")
+    result_path = task_results.get(task_id)
+    if result_path:
+        if os.path.exists(result_path):
+            return create_response(0, "ok", "task is complete")
+        else:
+            return create_response(1, "processing", "task is still processing")
+    return create_response(2, "fail", "task not found")
 
 
 @app.get("/km_sadtalker/download")
@@ -277,9 +278,14 @@ async def download(task_id: str):
     return FileResponse(result_path, media_type="application/octet-stream", filename=os.path.basename(result_path))
 
 
+@app.get("/km_sadtalker/heartbeat")
+async def heartbeat():
+    current_time = datetime.now(pytz.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
+    return create_response(0, "ok", {"current_time": current_time})
+
+
 if __name__ == "__main__":
     demo = sadtalker_demo()
     demo.queue()
-    app = gr.mount_gradio_app(app, demo, path="/home")
-    print(f"Gradio static files are being served from: {gr.__path__}")
+    app = gr.mount_gradio_app(app, demo, path="/")
     uvicorn.run(app, port=6006)
