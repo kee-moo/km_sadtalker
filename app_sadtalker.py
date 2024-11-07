@@ -262,9 +262,7 @@ async def get_task_status(task_id: str):
     if result_path:
         if os.path.exists(result_path):
             return create_response(0, "ok", "task is complete")
-        else:
-            return create_response(1, "processing", "task is still processing")
-    return create_response(2, "fail", "task not found")
+    return create_response(1, "ok", "task is process")
 
 
 @app.get("/km_sadtalker/download")
@@ -280,8 +278,8 @@ async def download(task_id: str):
 
 @app.get("/km_sadtalker/heartbeat")
 async def heartbeat():
-    current_time = datetime.now(pytz.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
-    return create_response(0, "ok", {"current_time": current_time})
+    time = datetime.now(pytz.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
+    return create_response(0, "ok", {"current_time": time})
 
 
 if __name__ == "__main__":
