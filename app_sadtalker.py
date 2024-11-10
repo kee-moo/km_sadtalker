@@ -15,7 +15,6 @@ from typing import Any, Optional, Dict
 import logging
 
 from fastapi.responses import FileResponse
-from sympy import false
 
 from src.gradio_demo import SadTalker
 

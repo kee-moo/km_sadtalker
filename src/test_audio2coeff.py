@@ -2,7 +2,6 @@ import os
 import torch
 import numpy as np
 from scipy.io import savemat, loadmat
-from sympy import true
 from yacs.config import CfgNode as CN
 from scipy.signal import savgol_filter
 
