@@ -2,6 +2,7 @@ import os
 import torch
 import numpy as np
 from scipy.io import savemat, loadmat
+from sympy import true
 from yacs.config import CfgNode as CN
 from scipy.signal import savgol_filter
 
@@ -12,6 +13,7 @@ from src.audio2pose_models.audio2pose import Audio2Pose
 from src.audio2exp_models.networks import SimpleWrapperV2
 from src.audio2exp_models.audio2exp import Audio2Exp
 from src.utils.safetensor_helper import load_x_from_safetensor
+from global_state import StatusManager
 
 
 def load_cpk(checkpoint_path, model=None, optimizer=None, device="cpu"):
@@ -39,6 +41,7 @@ class Audio2Coeff():
         self.audio2pose_model = Audio2Pose(cfg_pose, None, device=device)
         self.audio2pose_model = self.audio2pose_model.to(device)
         self.audio2pose_model.eval()
+        self.status_manager = StatusManager()
         for param in self.audio2pose_model.parameters():
             param.requires_grad = False
 
@@ -49,6 +52,7 @@ class Audio2Coeff():
             else:
                 load_cpk(sadtalker_path['audio2pose_checkpoint'], model=self.audio2pose_model, device=device)
         except:
+            self.status_manager.set_status(2)
             raise Exception("Failed in loading audio2pose_checkpoint")
 
         # load audio2exp_model

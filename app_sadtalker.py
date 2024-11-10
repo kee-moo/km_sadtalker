@@ -15,10 +15,14 @@ from typing import Any, Optional, Dict
 import logging
 
 from fastapi.responses import FileResponse
+from sympy import false
 
 from src.gradio_demo import SadTalker
 
+from global_state import StatusManager
+
 app = FastAPI()
+status_manager = StatusManager()
 
 log_dir = 'log'
 if not os.path.exists(log_dir):
@@ -38,7 +42,7 @@ log_handler.setFormatter(
 )
 
 # 配置日志
-logging.basicConfig(level=logging.DEBUG, handlers=[log_handler])
+logging.basicConfig(level=logging.INFO, handlers=[log_handler])
 
 task_results: Dict[str, Optional[str]] = {}
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -189,23 +193,6 @@ def generate_task(task_id, source_image_path, driven_audio_path, **kwargs):
     return task_id
 
 
-class Params(BaseModel):
-    preprocess: str = 'crop'
-    still_mode: bool = False
-    use_enhancer: bool = False
-    batch_size: int = 1
-    size: int = 256
-    pose_style: int = 0
-    exp_scale: float = 1.0
-    use_ref_video: bool = False
-    ref_video: Optional[str] = None
-    ref_info: Optional[str] = None
-    use_idle_mode: bool = False
-    length_of_audio: int = 0
-    use_blink: bool = True
-    result_dir: str = './results/'
-
-
 @app.post("/km_sadtalker/generate")
 async def generate(
         background_tasks: BackgroundTasks,
@@ -238,6 +225,7 @@ async def generate(
     with open(driven_audio_path, "wb") as buffer:
         shutil.copyfileobj(driven_audio.file, buffer)
     task_id = str(uuid.uuid4())
+    logging.info("init task status task_id: {}, status: {}".format(task_id, status_manager.get_status()))
     background_tasks.add_task(generate_task, task_id, source_image_path, driven_audio_path,
                               preprocess=preprocess,  # 参数4及以后
                               still_mode=still_mode,
@@ -258,6 +246,10 @@ async def generate(
 
 @app.get("/km_sadtalker/task/status")
 async def get_task_status(task_id: str):
+    logging.info("get task status id: {}, status: {}, path: {}"
+                 .format(task_id, status_manager.get_status(), task_results.get(task_id)))
+    if status_manager.get_status() >= 2:
+        return create_response(2, "fail", "task is failed")
     result_path = task_results.get(task_id)
     if result_path:
         if os.path.exists(result_path):
