@@ -248,6 +248,8 @@ async def get_task_status(task_id: str):
     logging.info("get task status id: {}, status: {}, path: {}"
                  .format(task_id, status_manager.get_status(), task_results.get(task_id)))
     if status_manager.get_status() >= 2:
+        if status_manager.get_status() == 3:
+            return create_response(10003, "fail", "can not detect the landmark from source image")
         return create_response(2, "fail", "task is failed")
     result_path = task_results.get(task_id)
     if result_path:
