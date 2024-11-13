@@ -37,6 +37,8 @@ class Preprocesser:
         det = dets[0]
 
         img = img_np[int(det[1]):int(det[3]), int(det[0]):int(det[2]), :]
+        if img is None:
+            self.status_manager.set_status(3)
         lm = landmark_98_to_68(self.predictor.detector.get_landmarks(img))  # [0]
 
         #### keypoints to the original location
