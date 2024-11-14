@@ -84,14 +84,15 @@ class KeypointExtractor():
 
                         break
                 except RuntimeError as e:
+                    self.status_manager.set_status(3)
                     if str(e).startswith('CUDA'):
                         print("Warning: out of memory, sleep for 1s")
                         time.sleep(1)
                     else:
-                        self.status_manager.set_status(3)
                         print(e)
                         break    
                 except TypeError:
+                    self.status_manager.set_status(3)
                     print('No face detected in this image')
                     shape = [68, 2]
                     keypoints = -1. * np.ones(shape)                    
