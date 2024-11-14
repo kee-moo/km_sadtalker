@@ -15,6 +15,7 @@ from facexlib.detection import init_detection_model
 
 from facexlib.utils import load_file_from_url
 from src.face3d.util.my_awing_arch import FAN
+from global_state import StatusManager
 
 def init_alignment_model(model_name, half=False, device='cuda', model_rootpath=None):
     if model_name == 'awing_fan':
@@ -41,7 +42,7 @@ class KeypointExtractor():
 
         except:
             root_path = 'gfpgan/weights'
-
+        self.status_manager = StatusManager()
         self.detector = init_alignment_model('awing_fan',device=device, model_rootpath=root_path)   
         self.det_net = init_detection_model('retinaface_resnet50', half=False,device=device, model_rootpath=root_path)
 
@@ -87,6 +88,7 @@ class KeypointExtractor():
                         print("Warning: out of memory, sleep for 1s")
                         time.sleep(1)
                     else:
+                        self.status_manager.set_status(3)
                         print(e)
                         break    
                 except TypeError:
