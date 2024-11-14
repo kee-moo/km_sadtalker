@@ -37,10 +37,11 @@ class Preprocesser:
         det = dets[0]
 
         img = img_np[int(det[1]):int(det[3]), int(det[0]):int(det[2]), :]
-        if img is None:
+        try:
+            lm = landmark_98_to_68(self.predictor.detector.get_landmarks(img))  # [0]
+        except Exception:
             self.status_manager.set_status(3)
-        lm = landmark_98_to_68(self.predictor.detector.get_landmarks(img))  # [0]
-
+            raise Exception("land mark error")
         #### keypoints to the original location
         lm[:, 0] += int(det[0])
         lm[:, 1] += int(det[1])
